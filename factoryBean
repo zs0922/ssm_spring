@@ -1,0 +1,154 @@
+------------------------------------pom.xml-------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>factorybean</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.2.4.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+------------------------------------IUserDao.java-------------------------------------
+package org.example.dao;
+
+public interface IUserDao {
+    void findAll();
+}
+------------------------------------UserDaoImpl.java-------------------------------------
+package org.example.dao.impl;
+
+import org.example.dao.IUserDao;
+
+public class UserDaoImpl implements IUserDao {
+    public void findAll(){
+        System.out.println("找到所有用户！");
+    }
+}
+------------------------------------IUserService.java-------------------------------------
+package org.example.service;
+
+public interface IUserService {
+    void findAllUser();
+}
+------------------------------------UserServiceImpl.java-------------------------------------
+package org.example.service.impl;
+
+import org.example.dao.IUserDao;
+import org.example.dao.impl.UserDaoImpl;
+import org.example.factory.BeanFactory;
+import org.example.service.IUserService;
+
+public class UserServiceImpl implements IUserService {
+//      ----------------------依赖关系比较强-----------------------
+//    private IUserDao userDao=new UserDaoImpl();
+//    public void findAllUser() { userDao.findAll(); }
+//        ------------通过建立bean.properties来降低依赖（工厂模式）-------------
+    private IUserDao userDao= (IUserDao) BeanFactory.getBean("userDao");
+    public void findAllUser(){
+        userDao.findAll();
+    }
+}
+------------------------------------Client.java-------------------------------------
+import org.example.service.IUserService;
+import org.example.service.impl.UserServiceImpl;
+import org.springframework.beans.factory.xml.XmlBeanFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+
+public class client {
+    public static void main(String[] args) {
+//      ----------------------依赖关系比较强-----------------------
+        /*
+        IUserService userService= new UserServiceImpl();
+        userService.findAllUser();
+        */
+//       ------------通过建立bean.properties来降低依赖（工厂模式）--------------
+        IUserService userService= (IUserService) BeanFactory.getBean("userService");
+        userService.findAllUser();
+    }
+}
+------------------------------bean.properties---------------------------------
+userDao=org.example.dao.impl.UserDaoImpl
+userService=org.example.service.impl.UserServiceImpl
+------------------------------------BeanFactory.java-------------------------------------
+package org.example.factory;
+
+import org.springframework.core.io.ClassPathResource;
+import java.io.InputStream;
+import java.util.*;
+
+/*
+ * 一个创建Bean对象的工厂
+ *
+ * Bean：在计算机英语中，即为可重用组件
+ * JavaBean：用Java语言编写的可重用组件
+ *      JavaBean >> 实体类
+ *    创建我们的service和dao对象
+ *
+ *   第一个：需要一个配置文件来配置我们的service和dao
+ *       配置的内容：唯一标识=全限定类型(key=value)
+ *   第二个：通过读取配置文件中配置的内容，反射创建对象
+ *
+ * 配置文件可以是xml也可以是properties
+ * */
+
+public class BeanFactory {
+//    定义一个properties对象
+    private static Properties props;
+//    定义能存要创建的对象的容器Map(工厂模式的升级版)
+    private static Map<String,Object> beans;
+    //使用静态代码块为Properties对象赋值
+    static{
+        try{
+            props=new Properties();             //实例化对象
+            //获取properties文件的流对象
+            InputStream in= ClassPathResource.class.getClassLoader().getResourceAsStream("bean.properties");
+            props.load(in);
+//            工厂模式的升级版
+            //实例化容器
+            beans=new HashMap<String, Object>();
+            //取出配置文件中所有的key
+            Enumeration keys=props.keys();
+            //遍历枚举
+            while(keys.hasMoreElements()){
+                //取出每个key
+                String beanName=keys.nextElement().toString();
+                //根据key获取value
+                String beanPath=props.getProperty(beanName);
+                //反射创建对象
+                Object value=Class.forName(beanPath);
+                beans.put(beanName,beanPath);
+            }
+        }catch(Exception e){
+            throw new ExceptionInInitializerError("初始化Properties对象失败！");
+        }
+    }
+    /*
+    * 根据bean的名称获取bean对象（工厂模式）
+    * */
+    /*
+    public static Object getBean(String beanName){
+        Object bean=null;
+        try {
+            String beanPath = props.getProperty(beanName);
+            bean = Class.forName(beanPath).newInstance();       //每次都会调用默认构造函数创建对象（多例）
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        return bean;
+    }
+    */
+//    工厂模式的升级版
+    public static Object getBean(String beanName){
+        return beans.get(beanName);
+    }
+}
