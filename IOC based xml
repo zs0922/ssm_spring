@@ -1,0 +1,167 @@
+---------------------------------pom.xml-----------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>factorybean</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.2.4.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+---------------------------------IUserDao.java-----------------------------------
+package org.example.dao;
+
+public interface IUserDao {
+    void findAll();
+}
+---------------------------------UseDaoImpl.java-----------------------------------
+package org.example.dao.impl;
+
+import org.example.dao.IUserDao;
+
+public class UserDaoImpl implements IUserDao {
+    public void findAll() {
+        System.out.println("保存了所有！");
+    }
+}
+---------------------------------IUserService.java-----------------------------------
+package org.example.service;
+
+public interface IUserService {
+    void findAllUser();
+}
+---------------------------------UserServiceImpl.java-----------------------------------
+package org.example.service.impl;
+
+import org.example.dao.IUserDao;
+import org.example.dao.impl.UserDaoImpl;
+import org.example.service.IUserService;
+
+public class UserServiceImpl implements IUserService {
+    private IUserDao userDao=new UserDaoImpl();
+
+    //试验构造函数
+    public UserServiceImpl(){
+        System.out.println("对象创建了");
+    }
+
+    public void findAllUser(){
+        userDao.findAll();
+    }
+}
+---------------------------------InstanceFactory.java-----------------------------------
+package org.example.factory;
+
+import org.example.service.IUserService;
+import org.example.service.impl.UserServiceImpl;
+
+//bean.xml中1.2方法，模拟一个工厂类（该类可能是存在于jar包的，我们无法通过修改源码的方式来提供默认构造函数）
+public class InstanceFactory {
+    public IUserService getUserService(){
+        return new UserServiceImpl();
+    }
+}
+---------------------------------StaticFactory.java-----------------------------------
+package org.example.factory;
+
+import org.example.dao.IUserDao;
+import org.example.dao.impl.UserDaoImpl;
+
+public class StaticFactory {
+    public static IUserDao getUserDao(){
+        return new UserDaoImpl();
+    }
+}
+---------------------------------bean.xml-----------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd">
+<!--    把对象的创建交给Spring来管理-->
+    <!--唯一标志id有了，全限定类名class也有了-->
+<!--    spring对bean的管理细节-->
+<!--    1.创建bean的三种方式-->
+<!--    1.1使用默认构造函数创建
+            在spring的配置文件中使用bean标签，配以id和class属性后，且没有其他属性和标签时
+            采用的就是默认构造函数创建bean对象，此时如果类中没有默认构造函数，则对象无法创建-->
+<!--    <bean id="userDao" class="org.example.dao.impl.UserDaoImpl"></bean>-->
+<!--    <bean id="userService" class="org.example.service.impl.UserServiceImpl"></bean>-->
+<!--    1.2使用普通工厂中的方法创建对象（使用某个类中的方法创建对象，并存入spring容器）  即InstanceFactory类-->
+    <bean id="instanceFactory" class="org.example.factory.InstanceFactory"></bean>
+    <bean id="userService" factory-bean="instanceFactory" factory-method="getUserService"></bean>
+<!--    1.3使用工厂中的静态方法创建对象（使用某个类中的静态方法创建对象，并存入spring容器）   即StaticFactory类-->
+    <bean id="userDao" class="org.example.factory.StaticFactory" factory-method="getUserDao" scope="singleton"></bean>
+<!--    2.bean对象的作用范围-->
+<!--    bean标签的scope属性用于指定bean的作用范围
+        取值：singleton:单例的（默认值）
+              prototype：多例的
+              request：作用于web应用的请求范围
+              session：作用于web应用的会话范围
+              global-session：作用于集群环境的会话范围（全局会话范围），当不是集群环境时，它就是session-->
+<!--    3.bean对象的生命周期-->
+<!--    3.1单例对象：（即时）
+            出生：当容器创建时对象出生
+            活着：容器在时，对象一直在
+            死亡：容器销毁，对象消亡
+            总结：单例对象的生命周期和容器相同
+           多例对象：（延迟）
+            出生：当我们使用对象时spring框架为我们创建
+            活着：一直使用一直活着
+            死亡：当对象长时间不用，且没有其他的对象引用时，由Java的垃圾回收机制回收-->
+</beans>
+---------------------------------Client.java-----------------------------------
+package org.example.ui;
+
+import org.example.dao.IUserDao;
+import org.example.service.IUserService;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.xml.XmlBeanFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+
+public class client {
+    /*
+     * 获取spring的Ioc核心容器，并根据id获取对象
+     * ApplicationContext的三个常用类
+     *   ClassPathApplicationContext:它可以加载类路径的配置文件，要求配置文件必须在类路径下，否则加载不了
+     *   FileSystemXmlApplicationContext:它可以加载磁盘任意路径下的配置文件（必须有访问权限）
+     *   AnnotationConfigApplicationContext:它是用于读取注解创建容器的
+     *
+     * 核心容器的两个接口引发的问题
+     *   ApplicationContext:             单例对象适用
+     *           它在构建核心容器时，创建对象采取的策略是采用立即加载的方式。即只要一读取完配置文件马上就创建配置文件中配置的对象
+     *   BeanFactory:                    多例对象适用
+     *           它在构建核心容器时，创建对象采用的策略是延迟加载的方式，即什么时候根据id获取对象了，什么时候才真正的创建对象
+     * */
+//      获取Spring的IOC核心容器，并根据id获取对象
+    public static void main(String[] args) {
+//      -----------------通过建立bean.xml来降低依赖--------------------
+//        //1.获取核心容器对象
+//        ApplicationContext ac=new ClassPathXmlApplicationContext("bean.xml");
+//        //2.根据id获取bean对象
+//        IUserDao userDao= ac.getBean("userDao",IUserDao.class);
+//        IUserService userService= (IUserService) ac.getBean("userService");
+//
+//        System.out.println(userDao);
+//        System.out.println(userService);
+//        BeanFactory里面读取xml文件
+        Resource resource= new ClassPathResource("bean.xml");
+        BeanFactory factory =new XmlBeanFactory(resource);
+        IUserDao userDao= (IUserDao) factory.getBean("userDao");
+        IUserService userService=factory.getBean("userService",IUserService.class);
+        System.out.println(userDao);
+        System.out.println(userService);
+    }
+}
