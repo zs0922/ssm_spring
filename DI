@@ -1,0 +1,251 @@
+-------------------------------pom.xml-------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>di</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+-------------------------------IUserDao.java-------------------------------
+package org.example.dao;
+
+public interface IUserDao {
+    void findAll();
+}
+-------------------------------UserDaoImpl.java-------------------------------
+package org.example.dao.impl;
+
+import org.example.dao.IUserDao;
+
+public class UserDaoImpl implements IUserDao {
+    public void findAll() {
+        System.out.println("保存了所有！");
+    }
+}
+-------------------------------IUserService.java-------------------------------
+package org.example.service;
+
+public interface IUserService {
+    void findAllUser();
+}
+-------------------------------UserServiceImpl.java-------------------------------
+package org.example.service.impl;
+
+import org.example.dao.IUserDao;
+import org.example.dao.impl.UserDaoImpl;
+import org.example.service.IUserService;
+
+import java.util.Date;
+
+public class UserServiceImpl implements IUserService {
+//    private IUserDao userDao=new UserDaoImpl();
+
+    //试验构造函数
+    //    为了演示构造函数的依赖注入对不同类型的数据
+    private String name;
+    private int age;
+    private Date birthday;
+    public UserServiceImpl(String n,int a,Date b) {
+        this.name = n;
+        this.age = a;
+        this.birthday = b;
+    }
+
+    public void findAllUser(){
+        System.out.println(this.name+","+this.age+","+birthday);
+//        userDao.findAll();
+    }
+}
+-------------------------------UserServiceImpl2.java-------------------------------
+package org.example.service.impl;
+
+import org.example.service.IUserService;
+
+import java.util.Date;
+
+public class UserServiceImpl2 implements IUserService {
+    private String name;
+    private int age;
+    private Date birthday;
+
+    public void setUserame(String name) {
+        this.name = name;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+
+    public void setBirthday(Date birthday) {
+        this.birthday = birthday;
+    }
+
+    public void findAllUser(){
+        System.out.println(this.name+","+this.age+","+birthday);
+//        userDao.findAll();
+    }
+-------------------------------UserServiceImpl3.java-------------------------------
+package org.example.service.impl;
+
+import org.example.service.IUserService;
+import java.util.*;
+
+public class UserServiceImpl3 implements IUserService {
+    private String[] myStrs;
+    private List<String> myList;
+    private Set<String> mySet;
+    private Map<String,String> myMap;
+    private Properties myProps;
+
+    public void setMyStrs(String[] myStrs) {
+        this.myStrs = myStrs;
+    }
+
+    public void setMyList(List<String> myList) {
+        this.myList = myList;
+    }
+
+    public void setMySet(Set<String> mySet) {
+        this.mySet = mySet;
+    }
+
+    public void setMyMap(Map<String, String> myMap) {
+        this.myMap = myMap;
+    }
+
+    public void setMyProps(Properties myProps) {
+        this.myProps = myProps;
+    }
+
+    public void findAllUser(){
+        System.out.println(Arrays.toString(myStrs));
+        System.out.println(myList);
+        System.out.println(mySet);
+        System.out.println(myMap);
+        System.out.println(myProps);
+    }
+}
+-------------------------------bean.xml-------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd">
+    <!--    spring中的依赖注入
+            依赖关系的维护就称为依赖注入
+            能注入的数据，有三类：
+                1.基本类型和String
+                2.其他bean类型（在配置文件中或者注释配置过的bean）
+                3.复杂类型/集合类型
+            注入的方式：
+                1.使用构造函数提供
+                2.使用set方法提供
+                3.使用注解提供  *******见innoIOC-->
+    <!--    1.构造函数注入:(UserServiceImpl.java)
+            使用的标签：constructor-arg
+            标签的位置：<bean>标签内部
+            标签中的属性：type:用于指定要注入的数据的数据类型，该数据类型也是构造函数中某个或者某些参数的类型。
+                         index:用于指定要注入的数据给构造函数中指定索引位置的参数赋值，索引的位置从0开始
+                         name:用于指定给构造函数中指定名称的参数赋值             ****最常用
+                         ========================以上参数用于指定给哪个参数赋值============================
+                         value:提供基本类型和String类型的值
+                         ref:用于指定其他的bean类型数据，它指的就是在spring的Ioc核心容器中出现过的bean对象
+             优势：在获取bean对象时，注入数据是必须的操作，否则对象无法创建成功。
+             弊端：改变了bean对象的实例化方式，使我们在创建对象时，如果用不到这些数据也必须提供-->
+    <!--    <bean id="userService" class="org.example.service.impl.UserServiceImpl">-->
+    <!--        <constructor-arg type="java.lang.String" value="zs"></constructor-arg>-->
+    <!--        <constructor-arg name="a" value="24"></constructor-arg>-->
+    <!--        <constructor-arg name="b" ref="now"></constructor-arg>-->
+    <!--    </bean>-->
+    <!--    <bean id="now" class="java.util.Date"></bean>-->
+    <!--    2.set方法注入:(UserServiceImpl2.java)                            ****更常用
+            使用的标签：property
+            标签的位置：<bean>标签内部
+            标签中的属性：name:用于指定注入时所调用的set方法名称
+                         value:提供基本类型和String类型的值
+                         ref:用于指定其他的bean类型数据，它指的就是在spring的Ioc核心容器中出现过的bean对象
+            优势：在创建对象时没有明确的限制,可以直接使用默认构造函数。
+            弊端：如果某个成员必须有值,则获取对象时有可能set方法没有执行-->
+    <!--    <bean id="userService2" class="org.example.service.impl.UserServiceImpl2">-->
+    <!--        <property name="userame" value="zs"></property>-->
+    <!--        <property name="age" value="24"></property>-->
+    <!--        <property name="birthday" ref="now"></property>-->
+    <!--    </bean>-->
+    <!--    <bean id="now" class="java.util.Date"></bean>-->
+    <!--    复杂类型的注入/集合类型的注入:(UserServiceImpl3.java)
+            用于给List结构集合注入的标签：list,array,set
+            用于给Map结构集合注入的标签：map,props
+            结构相同，标签可以互换-->
+    <bean id="userService3" class="org.example.service.impl.UserServiceImpl3">
+        <property name="myStrs">
+            <array>
+                <value>aaa</value>
+                <value>bbb</value>
+            </array>
+        </property>
+        <property name="myList">
+            <list>
+                <value>ccc</value>
+                <value>ddd</value>
+            </list>
+        </property>
+        <property name="mySet">
+            <set>
+                <value>eee</value>
+                <value>fff</value>
+            </set>
+        </property>
+        <property name="myMap">
+            <map>
+                <entry key="mapA" value="aa"></entry>
+                <entry key="mapB">
+                    <value>bb</value>
+                </entry>
+            </map>
+        </property>
+        <property name="myProps">
+            <props>
+                <prop key="propC">cc</prop>
+                <prop key="propD">dd</prop>
+            </props>
+        </property>
+    </bean>
+    <!--    <bean id="userDao" class="org.example.dao.impl.UserDaoImpl"></bean>-->
+</beans>
+-------------------------------Client.java-------------------------------
+package org.example.ui;
+
+import org.example.dao.IUserDao;
+import org.example.service.IUserService;
+import org.example.service.impl.UserServiceImpl3;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class client {
+    public static void main(String[] args) {
+//      -----------------通过建立bean.xml来降低依赖--------------------
+        ApplicationContext ac=new ClassPathXmlApplicationContext("bean.xml");        //获取核心容器对象
+//        IUserDao userDao= ac.getBean("userDao",IUserDao.class);             //根据id获取bean对象
+//        1.构造函数注入例子    UserServiceImpl类中用到
+//        IUserService userService= (IUserService) ac.getBean("userService");
+//        userService.findAllUser();
+//        2.set方法注入例子    UserServiceImpl2类中用到
+//        IUserService userService=ac.getBean("userService2", UserServiceImpl2.class);
+//        userService.findAllUser();
+        IUserService userService=ac.getBean("userService3", UserServiceImpl3.class);
+        userService.findAllUser();
+//        System.out.println(userDao);
+//        System.out.println(userService);
+    }
+}
