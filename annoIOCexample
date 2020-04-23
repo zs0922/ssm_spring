@@ -1,0 +1,334 @@
+-------------------------------pom.xml---------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>xmlIOCexample</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>6</source>
+                    <target>6</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.2.5.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.48</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-dbutils</groupId>
+            <artifactId>commons-dbutils</artifactId>
+            <version>1.4</version>
+        </dependency>
+        <dependency>
+            <groupId>c3p0</groupId>
+            <artifactId>c3p0</artifactId>
+            <version>0.9.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+-------------------------------IAccountService.java---------------------------------
+package org.example.service;
+
+import org.example.entity.Account;
+
+import java.util.List;
+//账户的业务层接口
+public interface IAccountService {
+//    查询所有
+    List<Account> findAllAccount();
+//    查询一个
+    Account findAccountById(Integer accountId);
+//    保存
+    void saveAccount(Account account);
+//    更新
+    void updateAccount(Account account);
+//    删除
+    void deleteAccount(Integer accountId);
+}
+-------------------------------AccountServiceImpl.java---------------------------------
+package org.example.service.impl;
+
+import org.example.dao.IAccountDao;
+import org.example.entity.Account;
+import org.example.service.IAccountService;
+
+import java.util.List;
+//账户业务层的实现类,注入持久层对象,用持久层去调用方法
+@Service("accountService")
+public class AccountServiceImpl implements IAccountService {
+    @Autowired
+    private IAccountDao accountDao;
+
+    //查询所有
+    @Override
+    public List<Account> findAllAccount() {
+        return accountDao.findAllAccount();
+    }
+
+    //查询一个
+    @Override
+    public Account findAccountById(Integer accountId) {
+        return accountDao.findAccountById(accountId);
+    }
+
+    //保存
+    @Override
+    public void saveAccount(Account account) {
+        accountDao.saveAccount(account);
+    }
+
+    //更新
+    @Override
+    public void updateAccount(Account account) {
+        accountDao.updateAccount(account);
+    }
+
+    //删除
+    @Override
+    public void deleteAccount(Integer accountId) {
+        accountDao.deleteAccount(accountId);
+    }
+}
+-------------------------------Account.java---------------------------------
+package org.example.entity;
+
+import java.io.Serializable;
+//账户的实体类
+public class Account implements Serializable {
+    private Integer id;
+    private String name;
+    private Float money;
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Float getMoney() {
+        return money;
+    }
+
+    public void setMoney(Float money) {
+        this.money = money;
+    }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", money=" + money +
+                '}';
+    }
+}
+-------------------------------IAccountDao.java---------------------------------
+package org.example.dao;
+
+import org.example.entity.Account;
+import java.util.List;
+//账户的持久层接口
+public interface IAccountDao {
+    //    查询所有
+    List<Account> findAllAccount();
+    //    查询一个
+    Account findAccountById(Integer accountId);
+    //    保存
+    void saveAccount(Account account);
+    //    更新
+    void updateAccount(Account account);
+    //    删除
+    void deleteAccount(Integer accountId);
+}
+-------------------------------AccountDaoImpl.java---------------------------------
+package org.example.dao.impl;
+
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.BeanHandler;
+import org.apache.commons.dbutils.handlers.BeanListHandler;
+import org.example.dao.IAccountDao;
+import org.example.entity.Account;
+
+import java.util.List;
+//账户的持久层实现类,注入runner对象帮助我们实现
+@Service("accountDao")
+public class AccountDaoImpl implements IAccountDao {
+    @Autowired
+    private QueryRunner runner;
+
+    @Override
+    public List<Account> findAllAccount() {
+        try {
+            return runner.query("select * from account", new BeanListHandler<Account>(Account.class));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public Account findAccountById(Integer accountId) {
+        try {
+            return runner.query("select * from account where id=?", new BeanHandler<Account>(Account.class),accountId);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void saveAccount(Account account) {
+        try {
+            runner.update("insert into account(name,money) values (?,?)", account.getName(), account.getMoney());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void updateAccount(Account account) {
+        try {
+            runner.update("update account set name=?,money=? where id=?", account.getName(), account.getMoney(), account.getId());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deleteAccount(Integer accountId) {
+        try {
+            runner.update("delete from account where id=?",accountId);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+-------------------------------bean.xml---------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:annotation-config/>
+<!--    配置service对象、dao对象-->
+    <context:component-scan base-package="org.example"></context:component-scan>
+<!--    配置runner对象-->
+    <bean id="runner" class="org.apache.commons.dbutils.QueryRunner" scope="prototype">
+<!--        注入数据源,QueryRunner有两个构造函数(有参的和无参的)-->
+        <constructor-arg name="ds" ref="dataSource"></constructor-arg>
+    </bean>
+<!--    配置数据源信息-->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+<!--        连接数据库的必备信息-->
+        <property name="driverClass" value="com.mysql.jdbc.Driver"></property>
+        <property name="jdbcUrl" value="jdbc:mysql://localhost:3306/mydb"></property>
+        <property name="user" value="root"></property>
+        <property name="password" value="zs0922"></property>
+    </bean>
+</beans>
+-------------------------------testService.java---------------------------------
+package org.example.test;
+
+import org.example.entity.Account;
+import org.example.service.IAccountService;
+import org.junit.Test;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import java.util.List;
+
+public class testService {
+    @Test
+    public void testFindAll() {
+        //1.创建容器
+        ApplicationContext ac= new ClassPathXmlApplicationContext("bean.xml");
+        //2.获取对象
+        IAccountService accountService=ac.getBean("accountService",IAccountService.class);
+        //3.执行方法
+        List<Account> accounts=accountService.findAllAccount();
+        for (Account account:accounts){
+            System.out.println(account);
+        }
+    }
+    @Test
+    public void testFindOne() {
+        //1.创建容器
+        ApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
+        //2.获取对象
+        IAccountService accountService = ac.getBean("accountService", IAccountService.class);
+        //3.执行方法
+        Account account = new Account();
+        account = accountService.findAccountById(1);
+        System.out.println(account);
+    }
+    @Test
+    public void testSave() {
+        //1.创建容器
+        ApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
+        //2.获取对象
+        IAccountService accountService = ac.getBean("accountService", IAccountService.class);
+        //3.执行方法
+        Account account = new Account();
+        account.setName("save");
+        account.setMoney((float) 1000.0);
+        accountService.saveAccount(account);
+    }
+    @Test
+    public void testUpdate() {
+        //1.创建容器
+        ApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
+        //2.获取对象
+        IAccountService accountService = ac.getBean("accountService", IAccountService.class);
+        //3.执行方法
+        Account account=new Account();
+        account.setId(4);
+        account.setName("update");
+        account.setMoney((float) 500);
+        accountService.updateAccount(account);
+    }
+    @Test
+    public void testDelete() {
+        //1.创建容器
+        ApplicationContext ac = new ClassPathXmlApplicationContext("bean.xml");
+        //2.获取对象
+        IAccountService accountService = ac.getBean("accountService", IAccountService.class);
+        //3.执行方法
+        accountService.deleteAccount(4);
+    }
+}
