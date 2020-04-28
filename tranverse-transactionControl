@@ -1,0 +1,385 @@
+------------------------------------pom.xml-------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>xmlIOCexample</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>6</source>
+                    <target>6</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <packaging>jar</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.2.5.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.48</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-dbutils</groupId>
+            <artifactId>commons-dbutils</artifactId>
+            <version>1.4</version>
+        </dependency>
+        <dependency>
+            <groupId>c3p0</groupId>
+            <artifactId>c3p0</artifactId>
+            <version>0.9.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13</version>
+            <scope>test</scope>
+        </dependency>
+        <!--        spring整合junit需要导入的jar(坐标)-->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>5.0.2.RELEASE</version>
+        </dependency>
+    </dependencies>
+</project>
+------------------------------------IAccountService.java-------------------------------------
+package org.example.service;
+
+import org.example.entity.Account;
+
+public interface IAccountService {
+    Account findByName(String str);
+    void updateAccount(Account account);
+    public void transferMoney(String sourceName, String targetName, float money);
+}
+------------------------------------AccountServiceImpl.java-------------------------------------
+package org.example.service.impl;
+
+import org.example.dao.IAccountDao;
+import org.example.entity.Account;
+import org.example.service.IAccountService;
+import org.example.utils.transactionManager;
+
+public class AccountServiceImpl implements IAccountService {
+
+    private IAccountDao accountDao;
+    private transactionManager txManger;
+
+    public void setAccountDao(IAccountDao accountDao) {
+        this.accountDao = accountDao;
+    }
+
+    public void setTxManger(transactionManager txManger) {
+        this.txManger = txManger;
+    }
+
+    @Override
+    public Account findByName(String nam) {
+        try{
+            //1.开启事务
+            txManger.beginTransaction();
+            //2.执行操作
+            Account account=accountDao.findByName(nam);
+            //3.提交事务
+            txManger.commit();
+            //4.返回结果
+            return account;
+        }catch(Exception e){
+            //5.回滚事务
+            txManger.rollback();
+            throw new RuntimeException(e);
+        }finally{
+            //6.释放连接
+            txManger.release();
+        }
+    }
+
+    @Override
+    public void updateAccount(Account account) {
+        try{
+            //1.开启事务
+            txManger.beginTransaction();
+            //2.执行操作
+            accountDao.updateAccount(account);
+            //3.提交事务
+            txManger.commit();
+        }catch(Exception e){
+            //4.回滚事务
+            txManger.rollback();
+            e.printStackTrace();
+        }finally{
+            //5.释放连接
+            txManger.release();
+        }
+    }
+
+    @Override
+    public void transferMoney(String sourceName, String targetName, float money) {
+        try{
+            //1.开启事务
+            txManger.beginTransaction();
+            //2.执行操作
+            Account acc1=accountDao.findByName(sourceName);
+            acc1.setMoney(acc1.getMoney()-money);
+            Account acc2=accountDao .findByName(targetName);
+            acc2.setMoney(acc2.getMoney()+money);
+            updateAccount(acc1);
+            updateAccount(acc2);
+            //3.提交事务
+            txManger.commit();
+        }catch(Exception e){
+            //4.回滚事务
+            txManger.rollback();
+            e.printStackTrace();
+        }finally{
+            //5.释放连接
+            txManger.release();
+        }
+    }
+}
+------------------------------------Account.java-------------------------------------
+package org.example.entity;
+
+public class Account {
+    private int id;
+    private String name;
+    private Float money;
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Float getMoney() {
+        return money;
+    }
+
+    public void setMoney(Float money) {
+        this.money = money;
+    }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", money=" + money +
+                '}';
+    }
+}
+------------------------------------IAccountDao.java-------------------------------------
+package org.example.dao;
+
+import org.example.entity.Account;
+
+public interface IAccountDao {
+    Account findByName(String nam);
+    void updateAccount(Account account);
+}
+------------------------------------AccountDaoImpl.java-------------------------------------
+package org.example.dao.impl;
+
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.BeanListHandler;
+import org.example.dao.IAccountDao;
+import org.example.entity.Account;
+import org.example.utils.ConnectionUtils;
+
+import java.util.List;
+
+public class AccountDaoImpl implements IAccountDao {
+
+    private QueryRunner runner;
+    private ConnectionUtils connectionUtils;
+
+    public void setRunner(QueryRunner runner) {
+        this.runner = runner;
+    }
+
+    public void setConnectionUtils(ConnectionUtils connectionUtils) {
+        this.connectionUtils = connectionUtils;
+    }
+
+    @Override
+    public Account findByName(String nam) {
+        try{
+            List<Account> accounts=runner.query(connectionUtils.getThreadConnection(),"select * from account where name=?",new BeanListHandler<Account>(Account.class),nam);
+            if(accounts==null || accounts.size()==0){
+                return null;
+            }
+            if(accounts.size()>1){
+                throw new RuntimeException("结果集不唯一，数据有错误");
+            }
+            return accounts.get(0);
+        }catch(Exception e){
+            throw new RuntimeException();
+        }
+    }
+
+    @Override
+    public void updateAccount(Account account) {
+        try{
+            runner.update(connectionUtils.getThreadConnection(),"update account set name=?,money=? where id=?",account.getName(),account.getMoney(),account.getId());
+        }catch(Exception e){
+            throw new RuntimeException();
+        }
+    }
+}
+------------------------------------ConnectionUtils.java-------------------------------------
+package org.example.utils;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+
+//连接的工具类，它用于从数据源中获取一个连接，并且实现和线程的绑定
+public class ConnectionUtils {
+    private ThreadLocal<Connection> tl=new ThreadLocal<Connection>();
+    private DataSource dataSource;
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    //获取当前线程上的连接
+    public Connection getThreadConnection(){
+        try{
+            //1.先从ThreadLocal上获取
+            Connection conn=tl.get();
+            //2.判断当前线程上是否有连接
+            if(conn==null){
+                //3.从数据源中获取一个连接，并且存入ThreadLocal中
+                conn=dataSource.getConnection();
+                tl.set(conn);
+            }
+            //4.返回线程上的连接
+            return conn;
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+    //把连接和线程释放
+    public void removeConnection(){
+        tl.remove();
+    }
+}
+------------------------------------transactionManager.java-------------------------------------
+package org.example.utils;
+//和事务管理相关的工具类，它包含了：开启事务，提交事务，回滚事务和释放连接
+public class transactionManager {
+    public ConnectionUtils connectionUtils;
+
+    public void setConnectionUtils(ConnectionUtils connectionUtils) {
+        this.connectionUtils = connectionUtils;
+    }
+    //开启事务
+    public void beginTransaction(){
+        try{
+            connectionUtils.getThreadConnection().setAutoCommit(false);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+    //提交事务
+    public void commit(){
+        try{
+            connectionUtils.getThreadConnection().commit();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+    //回滚事务
+    public void rollback(){
+        try{
+            connectionUtils.getThreadConnection().rollback();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+    //释放连接
+    public void release(){
+        try{
+            connectionUtils.getThreadConnection().close();//还回连接池中
+            connectionUtils.removeConnection();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+}
+------------------------------------bean.xml-------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd">
+<!--    配置Service对象-->
+    <bean id="accountService" class="org.example.service.impl.AccountServiceImpl">
+<!--        注入dao-->
+        <property name="accountDao" ref="accountDao"></property>
+        <!--    配置事务管理器-->
+        <property name="txManger" ref="txManager"></property>
+    </bean>
+<!--    配置dao对象-->
+    <bean id="accountDao" class="org.example.dao.impl.AccountDaoImpl">
+<!--        注入QueryRunner-->
+        <property name="runner" ref="runner"></property>
+<!--        注入ConnectionUtils-->
+        <property name="connectionUtils" ref="connectionUtils"></property>
+    </bean>
+<!--    配置QueryRunner-->
+    <bean id="runner" class="org.apache.commons.dbutils.QueryRunner" scope="prototype"></bean>
+<!--        配置数据源-->
+    <bean id="dateSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="com.mysql.jdbc.Driver"></property>
+        <property name="jdbcUrl" value="jdbc:mysql://localhost:3306/mydb"></property>
+        <property name="user" value="root"></property>
+        <property name="password" value="zs0922"></property>
+    </bean>
+
+<!--    配置Connection的工具类  ConnectionUtils-->
+    <bean id="connectionUtils" class="org.example.utils.ConnectionUtils">
+        <property name="dataSource" ref="dateSource"></property>
+    </bean>
+
+    <bean id="txManager" class="org.example.utils.transactionManager"></bean>
+</beans>
+------------------------------------accountTest.java-------------------------------------
+package org.example.test;
+
+import org.example.service.IAccountService;
+import org.junit.Test;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class accountTest {
+    @Test
+    public static void main(String[] args) {
+        ApplicationContext ac= new ClassPathXmlApplicationContext("bean.xml");
+        IAccountService accountService=ac.getBean("accountService", IAccountService.class);
+        accountService.transferMoney("aaa","bbb",100f);
+    }
+}
